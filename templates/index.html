@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Emotion Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.4);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --focus-ring: rgba(99, 102, 241, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 25%);
+            overflow-x: hidden;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #818cf8, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.05em;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        /* Two columns if result exists */
+        .content.has-result {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        @media (max-width: 768px) {
+            .content.has-result {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Upload area styling */
+        .file-input-wrapper {
+            border: 2px dashed var(--card-border);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .file-input-wrapper:hover, .file-input-wrapper.drag-active {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .icon-upload {
+            width: 64px;
+            height: 64px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .file-input-wrapper:hover .icon-upload {
+            transform: scale(1.1);
+        }
+
+        .upload-text {
+            font-size: 1.125rem;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .upload-text span {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        .upload-hint {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .file-name-display {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--accent);
+            display: none;
+            word-break: break-all;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .submit-btn.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .submit-btn.active:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.5);
+        }
+
+        .submit-btn.active:active {
+            transform: translateY(0);
+        }
+
+        /* Result section styling */
+        .result-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .image-preview-container {
+            width: 100%;
+            height: 250px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background: #000;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .image-preview-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .image-preview-container:hover img {
+            transform: scale(1.05);
+        }
+
+        .result-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .result-info h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.5rem;
+        }
+
+        .emotion-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .emotion-display span {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .emotion-tag {
+            padding: 0.5rem 1.5rem;
+            border-radius: 99px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+
+        /* Emotion specific colors */
+        .emotion-tag.happy { background: rgba(16, 185, 129, 0.2); color: #34d399; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .emotion-tag.sad { background: rgba(56, 188, 248, 0.2); color: #38bdf8; box-shadow: 0 0 15px rgba(56, 188, 248, 0.3); border: 1px solid rgba(56, 188, 248, 0.3); }
+        .emotion-tag.angry { background: rgba(239, 68, 68, 0.2); color: #f87171; box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .emotion-tag.fear { background: rgba(168, 85, 247, 0.2); color: #c084fc; box-shadow: 0 0 15px rgba(168, 85, 247, 0.3); border: 1px solid rgba(168, 85, 247, 0.3); }
+        .emotion-tag.surprise { background: rgba(245, 158, 11, 0.2); color: #fbbf24; box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .emotion-tag.disgust { background: rgba(132, 204, 22, 0.2); color: #65a30d; box-shadow: 0 0 15px rgba(132, 204, 22, 0.3); border: 1px solid rgba(132, 204, 22, 0.3); }
+        .emotion-tag.neutral { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; box-shadow: 0 0 15px rgba(148, 163, 184, 0.3); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+        .confidence-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .confidence-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .confidence-value {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .progress-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 99px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #818cf8);
+            border-radius: 99px;
+            width: 0%; /* Animated via inline style or JS */
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+            transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(99, 102, 241, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            color: var(--text-main);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Loading overlay when analyzing -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Analyzing Facial Expression...</div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <!-- Icon -->
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#818cf8"/>
+                        <stop offset="100%" stop-color="#34d399"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+            </svg>
+            <h1>Emotion Detection AI</h1>
+            <p>Upload a clear face image and let the neural network analyze the emotion.</p>
+        </div>
+
+        <div class="content {% if emotion %}has-result{% endif %}">
+            <!-- Upload Section -->
+            <div class="card upload-card">
+                <form action="/" method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <div class="file-input-wrapper" id="dropZone">
+                        <div class="icon-upload">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="upload-text">Drag & drop an image or <span>browse</span></div>
+                        <div class="upload-hint">Supports JPG, PNG, JPEG</div>
+                        <input type="file" name="file" id="fileInput" accept="image/*" required>
+                    </div>
+                    
+                    <div class="file-name-display" id="fileNameDisplay"></div>
+                    
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        Analyze Emotion
+                    </button>
+                </form>
+            </div>
+
+            <!-- Result Section -->
+            {% if emotion %}
+            <div class="card result-card">
+                <div class="image-preview-container">
+                    <!-- Format path correctly for jinja rendering -->
+                    <img src="/{{ image_path.replace('\\', '/') }}" alt="Uploaded Face">
+                </div>
+                
+                <div class="result-info">
+                    <h2>Prediction Result</h2>
+                    
+                    <div class="emotion-display">
+                        <span>Detected Emotion</span>
+                        <div class="emotion-tag {{ emotion.lower() }}">
+                            {{ emotion }}
+                        </div>
+                    </div>
+                    
+                    <div class="confidence-section">
+                        <div class="confidence-label">
+                            <span>Confidence Level</span>
+                            <span class="confidence-value">{{ confidence }}%</span>
+                        </div>
+                        <div class="progress-bg">
+                            <!-- We set the width to 0 first, and animate it in JS -->
+                            <div class="progress-fill" id="progressFill" data-confidence="{{ confidence }}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('fileInput');
+            const dropZone = document.getElementById('dropZone');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const submitBtn = document.getElementById('submitBtn');
+            const uploadForm = document.getElementById('uploadForm');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const progressFill = document.getElementById('progressFill');
+
+            // Handle file selection styling
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    const fileName = this.files[0].name;
+                    fileNameDisplay.textContent = 'Selected: ' + fileName;
+                    fileNameDisplay.style.display = 'block';
+                    submitBtn.classList.add('active');
+                } else {
+                    fileNameDisplay.style.display = 'none';
+                    submitBtn.classList.remove('active');
+                }
+            });
+
+            // Handle Drag & Drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                dropZone.classList.add('drag-active');
+            }
+
+            function unhighlight(e) {
+                dropZone.classList.remove('drag-active');
+            }
+
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length) {
+                    fileInput.files = files; // Assign files to input
+                    
+                    // Trigger change event manually
+                    const event = new Event('change');
+                    fileInput.dispatchEvent(event);
+                }
+            }
+
+            // Handle form submission UX
+            uploadForm.addEventListener('submit', (e) => {
+                if (fileInput.files.length > 0) {
+                    loadingOverlay.classList.add('active');
+                    submitBtn.classList.remove('active');
+                    submitBtn.textContent = 'Uploading...';
+                }
+            });
+
+            // Animate progress bar on load if it exists
+            if (progressFill) {
+                setTimeout(() => {
+                    const conf = progressFill.getAttribute('data-confidence');
+                    progressFill.style.width = conf + '%';
+                }, 300); // slight delay for smooth animation
+            }
+        });
+    </script>
+</body>
+</html>
